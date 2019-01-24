@@ -81,23 +81,35 @@ func fillLine(data map[string]string) (ret Line, errs []error) {
 	return
 }
 
+func reverse(lst []string) chan string {
+    ret := make(chan string)
+    go func() {
+        for i, _ := range lst {
+            ret <- lst[len(lst)-1-i]
+        }
+        close(ret)
+    }()
+    return ret
+}
+
 // Parse a line returned by "xentop -b"
 func parseLine(line string, header []string) (map[string]string, error) {
+
 	ret := make(map[string]string)
 	line = strings.Replace(line, "no limit", "no-limit", -1) // avoid spaces in fields
 	fields := strings.Fields(line)
-	if len(fields) != len(header) {
-		if len(fields) == 0 {
-			return nil, fmt.Errorf("parseLine: empty line")
-		} else {
-			return nil, fmt.Errorf("parseLine: num fields does not match header for %s", fields[0])
+
+	i := 0
+	for key := range reverse(header) {
+		ret[key] = fields[len(fields) - 1 - i]
+
+		i = i + 1
+		if i == len(header) {
+			name := strings.Join(fields[0:len(fields) - i + 1], "-")
+			ret[key] = name
 		}
 	}
-	for i, key := range header {
-		ret[key] = fields[i]
-	}
 	return ret, nil
-}
 
 func XenTopCmd(lines chan<- Line, errs chan<- error, cmdPath string) {
 	cmd := exec.Command(cmdPath, "-b")
